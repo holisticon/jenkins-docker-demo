@@ -1,0 +1,58 @@
+version: '2.1'
+services:
+  registry:
+    container_name: docker_registry
+    image: registry:2
+    ports:
+      - 5000:5000
+    volumes:
+      - ${REGISTRY_DATA_DIR}:/var/lib/registry
+      
+  jenkins:
+    container_name: jenkins_server
+    build: docker/build/jenkins
+    healthcheck:
+        test: ["CMD", "wget", "http://localhost:${JENKINS_SERVER_PORT}/login"]
+        interval: 30s
+        timeout: 10s
+        retries: 5
+    ports:
+      - "${JENKINS_SERVER_PORT}:8080"
+    volumes:
+      - ${JENKINS_DATA_DIR}/home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    user: root
+    environment:
+      - JENKINS_ADMIN_USER
+      - JENKINS_ADMIN_PASS
+      - JENKINS_ADMIN_ADDR
+      - JENKINS_SERVER_PORT
+      - JENKINS_IMAGE_VERSION
+      - JENKINS_DATA_DIR
+      - JENKINS_EXECUTORS
+      - JENKINS_GIT_NAME
+      - JENKINS_GIT_EMAIL
+      - JENKINS_SLAVE_AGENT_PORT
+      - JENKINS_QUIET_PERIOD
+
+  jenkins_node_1:
+    build: docker/build/jenkins-slave
+    image: localhost:5000/holisticon/jenkins_node
+    container_name: jenkins_node_1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JENKINS_SLAVE_SSH_PUBKEY
+    links:
+      - jenkins
+
+  jenkins_node_2:
+    build: docker/build/jenkins-slave
+    image: localhost:5000/holisticon/jenkins_node
+    container_name: jenkins_node_2
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JENKINS_SLAVE_SSH_PUBKEY
+    links:
+      - jenkins
